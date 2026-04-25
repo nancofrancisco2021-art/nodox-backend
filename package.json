@@ -4,9 +4,8 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-  "start": "node server.js",
-    "dist": "electron-builder"
-  },
+  "start": "node server.js"
+    },
   "build": {
     "appId": "com.nodox.server",
     "win": {
@@ -14,25 +13,17 @@
       "icon": "icono.ico"
     }
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "devDependencies": {
-    "electron": "^39.2.4",
-    "electron-builder": "^26.0.12"
-  },
+  
   "dependencies": {
-    "bcryptjs": "^2.4.3",
+
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "fs": "^0.0.1-security",
-    "jsonwebtoken": "^9.0.2",
+    
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
-    "nodemailer": "^8.0.1",
-    "path": "^0.12.7",
-    "pdfkit": "^0.17.2"
+    "nodemailer": "^8.0.1"
+    
   }
 }
