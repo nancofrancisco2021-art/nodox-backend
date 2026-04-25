@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const db = require("./db");
 const pool = require("./db");
 
 const app = express();
@@ -44,4 +43,10 @@ pool.query("SELECT 1", (err, res) => {
     } else {
         console.log("✅ Conectado a Aiven");
     }
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log(`API NODOX corriendo en puerto ${PORT}`);
 });
