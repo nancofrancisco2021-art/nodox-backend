@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+
+console.log("🔥 BACKEND NUEVO ACTIVO 🔥");
  
 function calcularConsumoStock(m) {
     const cantidad = Number(m.cantidad || 0);
