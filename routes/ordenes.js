@@ -126,28 +126,45 @@ router.post("/crear", async (req, res) => {
         // ============================
         // 2) CREAR ORDEN
         // ============================
-        const [ordenResult] = await conn.query(
-            `
-            INSERT INTO ordenes_trabajo
-            (descripcion, cliente, contacto, tel, subtotal, iva, total, metodo_pago, anticipo, saldo, sucursal_id, estado, fecha)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pendiente', NOW())
-            `,
-            [
-                descripcion,
-                cliente,
-                contacto,
-                tel,
-                subtotal,
-                iva,
-                total,
-                metodo_pago,
-                anticipo,
-                saldo,
-                sucursal_id
-            ]
-        );
-
-        const ordenId = ordenResult.insertId;
+        const sql = `
+    INSERT INTO ordenes_trabajo
+    (descripcion, notas_produccion, sucursal_id, estado, fecha_creacion, numero_orden)
+    VALUES (?, ?, ?, ?, NOW(), ?)
+`;
+ 
+const valores = [
+    descripcion,
+    JSON.stringify({
+        cliente_info,
+        materiales,
+        subtotal,
+        iva,
+        total,
+        iva_porcentaje,
+        metodo_pago,
+        anticipo,
+        saldo,
+        notas_extra
+    }),
+    sucursal_id,
+    estado_inicial || "Pendiente",
+    numero_orden
+];
+ 
+db.query(sql, valores, (err, result) => {
+    if (err) {
+        console.error("Error creando orden:", err);
+        return res.status(500).json({
+            error: "Error al crear orden",
+            detalle: err.message
+        });
+    }
+ 
+    res.json({
+        mensaje: "Orden creada correctamente",
+        id: result.insertId
+    });
+});
 
         // ============================
         // 3) INSERTAR MATERIALES
