@@ -55,66 +55,74 @@ function normalizeNotas(raw) {
 // =========================================
 router.post("/crear", async (req, res) => {
     const conn = await db.promise().getConnection();
-
+ 
     try {
         const {
-            descripcion,
-            cliente,
-            contacto,
-            tel,
-            subtotal,
-            iva,
-            total,
-            metodo_pago,
-            anticipo,
-            saldo,
+            descripcion = "",
+            notas_extra = "",
+            cliente_info = {},
+            materiales = [],
+            subtotal = 0,
+            iva = 0,
+            total = 0,
+            iva_porcentaje = 8,
+            metodo_pago = "Efectivo",
+            anticipo = 0,
+            saldo = 0,
             sucursal_id,
-            materiales = []
+            numero_orden,
+            estado_inicial = "Pendiente"
         } = req.body;
-
+ 
         if (!sucursal_id) {
             return res.status(400).json({ error: "Sucursal requerida" });
         }
-
-        // ============================
-        // FUNCION PARA CALCULAR CONSUMO
-        // ============================
+ 
+        if (!numero_orden) {
+            return res.status(400).json({ error: "Número de orden requerido" });
+        }
+ 
+        if (!cliente_info.cliente || !cliente_info.tel) {
+            return res.status(400).json({ error: "Cliente y teléfono son obligatorios" });
+        }
+ 
+        if (!Array.isArray(materiales) || materiales.length === 0) {
+            return res.status(400).json({ error: "Debe agregar materiales" });
+        }
+ 
         const calcularConsumo = (m) => {
             const cantidad = Number(m.cantidad || 0);
-
+ 
             if (m.unidad === "m2") {
                 const ancho = Number(m.ancho || 0);
                 const alto = Number(m.alto || 0);
                 return cantidad * ancho * alto;
             }
-
+ 
             return cantidad;
         };
-
+ 
         await conn.beginTransaction();
-
-        // ============================
-        // 1) VALIDAR STOCK
-        // ============================
+ 
         for (const m of materiales) {
             if (!m.id) continue;
-
+ 
             const consumo = calcularConsumo(m);
-
+ 
             const [rows] = await conn.query(
                 `
-                SELECT cantidad 
+                SELECT cantidad
                 FROM inventario_sucursal
                 WHERE inventario_id = ? AND sucursal_id = ?
                 `,
                 [m.id, sucursal_id]
             );
-
+ 
             const stockActual = Number(rows[0]?.cantidad || 0);
-
+ 
             if (stockActual < consumo) {
                 await conn.rollback();
-
+ 
                 return res.status(400).json({
                     error: `No hay suficiente material: ${m.nombre}`,
                     disponible: stockActual,
@@ -122,53 +130,37 @@ router.post("/crear", async (req, res) => {
                 });
             }
         }
-
-        // ============================
-        // 2) CREAR ORDEN
-        // ============================
-        const sql = `
-    INSERT INTO ordenes_trabajo
-    (descripcion, notas_produccion, sucursal_id, estado, fecha_creacion, numero_orden)
-    VALUES (?, ?, ?, ?, NOW(), ?)
-`;
  
-const valores = [
-    descripcion,
-    JSON.stringify({
-        cliente_info,
-        materiales,
-        subtotal,
-        iva,
-        total,
-        iva_porcentaje,
-        metodo_pago,
-        anticipo,
-        saldo,
-        notas_extra
-    }),
-    sucursal_id,
-    estado_inicial || "Pendiente",
-    numero_orden
-];
+        const notas_produccion = {
+            cliente_info,
+            materiales,
+            subtotal,
+            iva,
+            total,
+            iva_porcentaje,
+            metodo_pago,
+            anticipo,
+            saldo,
+            notas_extra
+        };
  
-db.query(sql, valores, (err, result) => {
-    if (err) {
-        console.error("Error creando orden:", err);
-        return res.status(500).json({
-            error: "Error al crear orden",
-            detalle: err.message
-        });
-    }
+        const [ordenResult] = await conn.query(
+            `
+            INSERT INTO ordenes_trabajo
+            (numero_orden, descripcion, notas_produccion, sucursal_id, estado, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, NOW())
+            `,
+            [
+                numero_orden,
+                descripcion || "",
+                JSON.stringify(notas_produccion),
+                sucursal_id,
+                estado_inicial || "Pendiente"
+            ]
+        );
  
-    res.json({
-        mensaje: "Orden creada correctamente",
-        id: result.insertId
-    });
-});
-
-        // ============================
-        // 3) INSERTAR MATERIALES
-        // ============================
+        const ordenId = ordenResult.insertId;
+ 
         for (const m of materiales) {
             await conn.query(
                 `
@@ -189,15 +181,12 @@ db.query(sql, valores, (err, result) => {
                 ]
             );
         }
-
-        // ============================
-        // 4) DESCONTAR STOCK
-        // ============================
+ 
         for (const m of materiales) {
             if (!m.id) continue;
-
+ 
             const consumo = calcularConsumo(m);
-
+ 
             await conn.query(
                 `
                 UPDATE inventario_sucursal
@@ -207,29 +196,29 @@ db.query(sql, valores, (err, result) => {
                 [consumo, m.id, sucursal_id]
             );
         }
-
+ 
         await conn.commit();
-
+ 
         res.json({
             mensaje: "Orden creada correctamente",
             id: ordenId
         });
-
+ 
     } catch (err) {
         await conn.rollback();
-
+ 
         console.error("Error creando orden:", err);
-
+ 
         res.status(500).json({
             error: "Error al crear orden",
             detalle: err.message
         });
-
+ 
     } finally {
         conn.release();
     }
 });
-
+ 
 // =========================================
 // LISTAR ÓRDENES POR SUCURSAL
 // =========================================
