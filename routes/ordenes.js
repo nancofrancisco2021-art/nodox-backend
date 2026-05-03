@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-    console.log("🔥 VERSION 1000🔥");
+console.log("🔥 VERSION 1000🔥");
 
 function calcularConsumoStock(m) {
     const cantidad = Number(m.cantidad || 0);
@@ -118,27 +118,6 @@ router.post("/crear", async (req, res) => {
 
         const ordenId = ordenResult.insertId;
 
-        // Insertar materiales
-        for (const m of materiales) {
-            await conn.query(
-                `
-                INSERT INTO ordenes_materiales
-                (orden_id, inventario_id, nombre, unidad, cantidad, precio, descuento, ancho, alto)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `,
-                [
-                    ordenId,
-                    m.id || null,
-                    m.nombre || "",
-                    m.unidad || "pieza",
-                    Number(m.cantidad || 0),
-                    Number(m.precio || 0),
-                    Number(m.descuento || 0),
-                    m.ancho || null,
-                    m.alto || null
-                ]
-            );
-        }
 
         // Descontar stock
         for (const m of materiales) {
