@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-console.log("🔥 ORDENES ROUTER ACTIVO - VERSION SIN CLIENTE COLUMN 🔥");
+    console.log("🔥 VERSION 1000🔥");
 
 function calcularConsumoStock(m) {
     const cantidad = Number(m.cantidad || 0);
@@ -341,4 +341,3 @@ router.delete("/eliminar/:id", (req, res) => {
 });
 
 module.exports = router;
-
