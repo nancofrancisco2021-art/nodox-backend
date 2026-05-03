@@ -21,7 +21,7 @@ function calcularConsumoStock(m) {
 // ===============================
 router.post("/crear", async (req, res) => {
     const conn = await db.promise().getConnection();
-
+ 
     try {
         const {
             descripcion = "",
@@ -39,52 +39,65 @@ router.post("/crear", async (req, res) => {
             numero_orden,
             estado_inicial = "Pendiente"
         } = req.body;
-
+ 
+        // =============================
+        // VALIDACIONES
+        // =============================
         if (!sucursal_id) {
             return res.status(400).json({ error: "Sucursal requerida" });
         }
-
+ 
         if (!numero_orden) {
             return res.status(400).json({ error: "Número de orden requerido" });
         }
-
+ 
         if (!cliente_info.cliente || !cliente_info.tel) {
             return res.status(400).json({ error: "Cliente y teléfono son obligatorios" });
         }
-
+ 
         if (!Array.isArray(materiales) || materiales.length === 0) {
             return res.status(400).json({ error: "Debe agregar materiales" });
         }
-
+ 
+        // =============================
+        // FUNCIÓN DE CONSUMO
+        // =============================
+        const calcularConsumoStock = (m) => {
+            const cantidad = Number(m.cantidad || 0);
+ 
+            if (m.unidad === "m2") {
+                const ancho = Number(m.ancho || 0);
+                const alto = Number(m.alto || 0);
+                return cantidad * ancho * alto;
+            }
+ 
+            return cantidad;
+        };
+ 
         await conn.beginTransaction();
-
-       // Descontar stock
-for (const m of materiales) {
-    if (!m.id) continue;
  
-    const consumo = calcularConsumoStock(m);
+        // =============================
+        // 1) VALIDAR STOCK
+        // =============================
+        for (const m of materiales) {
+            if (!m.id) continue;
  
-    console.log("DESCONTANDO STOCK:", {
-        inventario_id: m.id,
-        sucursal_id,
-        consumo
-    });
+            const consumo = calcularConsumoStock(m);
  
-    await conn.query(
-        `
-        UPDATE inventario_sucursal
-        SET cantidad = cantidad - ?
-        WHERE inventario_id = ? AND sucursal_id = ?
-        `,
-        [consumo, m.id, sucursal_id]
-    );
-
-
+            const [rows] = await conn.query(
+                `
+                SELECT cantidad
+                FROM inventario_sucursal
+                WHERE inventario_id = ? AND sucursal_id = ?
+                `,
+                [m.id, sucursal_id]
+            );
+ 
             const stockActual = Number(rows[0]?.cantidad || 0);
-
+ 
             if (stockActual < consumo) {
                 await conn.rollback();
-
+ 
                 return res.status(400).json({
                     error: `No hay suficiente material: ${m.nombre}`,
                     disponible: stockActual,
@@ -92,7 +105,10 @@ for (const m of materiales) {
                 });
             }
         }
-
+ 
+        // =============================
+        // 2) CREAR ORDEN
+        // =============================
         const notas_produccion = {
             cliente_info,
             materiales,
@@ -105,9 +121,7 @@ for (const m of materiales) {
             saldo,
             notas_extra
         };
-
-        // OJO: esta tabla NO tiene cliente/contacto/tel como columnas.
-        // Todo eso va guardado en notas_produccion.
+ 
         const [ordenResult] = await conn.query(
             `
             INSERT INTO ordenes_trabajo
@@ -116,22 +130,29 @@ for (const m of materiales) {
             `,
             [
                 numero_orden,
-                descripcion || "",
+                descripcion,
                 JSON.stringify(notas_produccion),
                 sucursal_id,
-                estado_inicial || "Pendiente"
+                estado_inicial
             ]
         );
-
+ 
         const ordenId = ordenResult.insertId;
-
-
-        // Descontar stock
+ 
+        // =============================
+        // 3) DESCONTAR STOCK
+        // =============================
         for (const m of materiales) {
             if (!m.id) continue;
-
+ 
             const consumo = calcularConsumoStock(m);
-
+ 
+            console.log("DESCONTANDO STOCK:", {
+                inventario_id: m.id,
+                sucursal_id,
+                consumo
+            });
+ 
             await conn.query(
                 `
                 UPDATE inventario_sucursal
@@ -141,28 +162,32 @@ for (const m of materiales) {
                 [consumo, m.id, sucursal_id]
             );
         }
-
+ 
+        // =============================
+        // 4) FINALIZAR
+        // =============================
         await conn.commit();
-
+ 
         res.json({
             mensaje: "Orden creada correctamente",
             id: ordenId
         });
-
+ 
     } catch (err) {
         await conn.rollback();
-
+ 
         console.error("Error creando orden:", err);
-
+ 
         res.status(500).json({
             error: "Error al crear orden",
             detalle: err.message
         });
-
+ 
     } finally {
         conn.release();
     }
 });
+ 
 
 // ===============================
 // LISTAR ÓRDENES POR SUCURSAL
