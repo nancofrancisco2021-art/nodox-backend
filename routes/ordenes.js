@@ -58,20 +58,27 @@ router.post("/crear", async (req, res) => {
 
         await conn.beginTransaction();
 
-        // Validar stock
-        for (const m of materiales) {
-            if (!m.id) continue;
+       // Descontar stock
+for (const m of materiales) {
+    if (!m.id) continue;
+ 
+    const consumo = calcularConsumoStock(m);
+ 
+    console.log("DESCONTANDO STOCK:", {
+        inventario_id: m.id,
+        sucursal_id,
+        consumo
+    });
+ 
+    await conn.query(
+        `
+        UPDATE inventario_sucursal
+        SET cantidad = cantidad - ?
+        WHERE inventario_id = ? AND sucursal_id = ?
+        `,
+        [consumo, m.id, sucursal_id]
+    );
 
-            const consumo = calcularConsumoStock(m);
-
-            const [rows] = await conn.query(
-                `
-                SELECT cantidad
-                FROM inventario_sucursal
-                WHERE inventario_id = ? AND sucursal_id = ?
-                `,
-                [m.id, sucursal_id]
-            );
 
             const stockActual = Number(rows[0]?.cantidad || 0);
 
