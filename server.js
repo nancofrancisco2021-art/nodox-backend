@@ -33,6 +33,8 @@ app.use('/clientes', clientes);
 const serviciosRoutes = require('./routes/servicios');
 app.use('/servicios', serviciosRoutes);
 
+console.log("SERVER USANDO ROUTES/OREDENES NUEVO");
+
 app.listen(3000, () => {
     console.log("API NODOX corriendo en puerto 3000");
 });
