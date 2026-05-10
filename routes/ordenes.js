@@ -18,7 +18,6 @@ function calcularConsumoStock(m) {
 
 // ===============================
 // CREAR ORDEN
-// POST /ordenes/crear
 // ===============================
 router.post("/crear", async (req, res) => {
     const conn = await db.promise().getConnection();
@@ -67,7 +66,7 @@ router.post("/crear", async (req, res) => {
         // VALIDAR STOCK
         // =============================
         for (const m of materiales) {
-            // Si es servicio, normalmente no trae inventario_id real
+        
             if (!m.id) continue;
 
             const consumo = calcularConsumoStock(m);
@@ -452,6 +451,45 @@ router.delete("/eliminar/:id", (req, res) => {
             });
         }
     );
+});
+
+
+// =======================================
+// CONFIRMAR ORDEN DE TRABAJO
+// =======================================
+router.put("/confirmar/:id", (req, res) => {
+    const { id } = req.params;
+
+    const sql = `
+        UPDATE ordenes_trabajo
+        SET 
+            estado = 'Confirmada',
+            fecha_confirmacion = NOW(),
+            fecha_ultima_actualizacion = NOW()
+        WHERE id = ?
+    `;
+
+    db.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error("Error confirmando orden:", err);
+
+            return res.status(500).json({
+                error: "Error al confirmar orden",
+                detalle: err.message
+            });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                error: "Orden no encontrada"
+            });
+        }
+
+        res.json({
+            msg: "ok",
+            mensaje: "Orden confirmada correctamente"
+        });
+    });
 });
 
 module.exports = router;
