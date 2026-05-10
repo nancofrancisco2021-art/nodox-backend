@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-// OBTENER CONVERSACIÓN ENTRE 2 USUARIOS
 router.get("/conversacion/:u1/:u2", (req, res) => {
     const { u1, u2 } = req.params;
 

@@ -12,11 +12,9 @@ router.post("/enviar-pdf", async (req, res) => {
       return res.status(400).json({ error: "Cliente sin correo" });
     }
 
-    // ✅ AQUÍ SE CREA EL PDF
     const pdfPath = await generarPDFOrden(orden);
     console.log("PDF GENERADO EN:", pdfPath);
 
-    // ✅ AQUÍ SE ENVÍA
     await enviarCorreo(
       orden.mail,
       `Orden de trabajo NODOX #${orden.id}`,

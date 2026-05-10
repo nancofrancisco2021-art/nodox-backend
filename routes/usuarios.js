@@ -4,7 +4,6 @@ const db = require("../db");
 
 // =========================================
 // LISTAR USUARIOS POR SUCURSAL
-// GET /usuarios/listar/:sucursalId
 // =========================================
 router.get("/listar/:sucursalId", (req, res) => {
     const { sucursalId } = req.params;

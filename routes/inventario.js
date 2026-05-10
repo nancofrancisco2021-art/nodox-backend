@@ -3,8 +3,7 @@ const router = express.Router();
 const db = require("../db");
  
 // =========================================
-// 1) Listar sucursales
-// GET /inventario/sucursales
+// Listar sucursales
 // =========================================
 router.get("/sucursales", (req, res) => {
     db.query(
@@ -20,8 +19,7 @@ router.get("/sucursales", (req, res) => {
 });
  
 // =========================================
-// 2) Listar inventario de la sucursal actual
-// GET /inventario/listar/:sucursalId
+//  Listar inventario de la sucursal actual
 // =========================================
 router.get("/listar/:sucursalId", (req, res) => {
     const { sucursalId } = req.params;
@@ -53,8 +51,7 @@ router.get("/listar/:sucursalId", (req, res) => {
 });
  
 // =========================================
-// 3) Ver inventario de otras sucursales
-// GET /inventario/otras-sucursales/:sucursalId
+// Ver inventario de otras sucursales
 // =========================================
 router.get("/otras-sucursales/:sucursalId", (req, res) => {
     const { sucursalId } = req.params;
@@ -84,8 +81,7 @@ router.get("/otras-sucursales/:sucursalId", (req, res) => {
 });
  
 // =========================================
-// 4) Detalle de producto por sucursal
-// GET /inventario/detalle/:id/:sucursalId
+// Detalle de producto por sucursal
 // =========================================
 router.get("/detalle/:id/:sucursalId", (req, res) => {
     const { id, sucursalId } = req.params;
@@ -120,8 +116,7 @@ router.get("/detalle/:id/:sucursalId", (req, res) => {
 });
  
 // =========================================
-// 5) Crear producto + stock inicial sucursal
-// POST /inventario/crear
+// Crear producto + stock inicial sucursal
 // =========================================
 router.post("/crear", (req, res) => {
     const { nombre, descripcion, unidad, precio, cantidad, sucursal_id } = req.body;
@@ -160,8 +155,7 @@ router.post("/crear", (req, res) => {
 });
  
 // =========================================
-// 6) Actualizar producto + cantidad sucursal
-// PUT /inventario/actualizar/:id
+// Actualizar producto + cantidad sucursal
 // =========================================
 router.put("/actualizar/:id", (req, res) => {
     const { id } = req.params;
@@ -197,8 +191,7 @@ router.put("/actualizar/:id", (req, res) => {
 });
  
 // =========================================
-// 7) Eliminar producto
-// DELETE /inventario/eliminar/:id
+// Eliminar producto
 // =========================================
 router.delete("/eliminar/:id", (req, res) => {
     const { id } = req.params;

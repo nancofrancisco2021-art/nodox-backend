@@ -3,8 +3,7 @@ const router = express.Router();
 const db = require("../db");
  
 // =========================================
-// 1) Buscar cliente por teléfono (ID)
-// GET /clientes/:id
+// Buscar cliente por teléfono (ID)
 // =========================================
 router.get("/:id", (req, res) => {
     const { id } = req.params;
@@ -24,8 +23,7 @@ router.get("/:id", (req, res) => {
 });
  
 // =========================================
-// 2) Crear o actualizar cliente
-// POST /clientes/guardar
+// Crear o actualizar cliente
 // =========================================
 router.post("/guardar", (req, res) => {
     const { id, cliente, contacto, mail, direccion, rfc } = req.body;
@@ -56,8 +54,7 @@ router.post("/guardar", (req, res) => {
 });
  
 // =========================================
-// 3) Listar clientes
-// GET /clientes/listar
+// Listar clientes
 // =========================================
 router.get("/listar/todos", (req, res) => {
     db.query("SELECT * FROM clientes ORDER BY fecha_registro DESC", (err, rows) => {
@@ -71,8 +68,7 @@ router.get("/listar/todos", (req, res) => {
 });
 
 // =========================================
-// 4) Eliminar cliente
-// DELETE /clientes/eliminar/:id
+// Eliminar cliente
 // =========================================
 router.delete("/eliminar/:id", (req, res) => {
     const { id } = req.params;

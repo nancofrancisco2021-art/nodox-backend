@@ -17,7 +17,6 @@ function getPrecioColumn(callback) {
 
 // ===============================
 // LISTAR SERVICIOS
-// GET /servicios/listar
 // ===============================
 router.get("/listar", (req, res) => {
     const sql = `
@@ -53,7 +52,6 @@ router.get("/listar", (req, res) => {
 
 // ===============================
 // LISTAR RANGOS
-// GET /servicios/rangos/:servicioId
 // ===============================
 router.get("/rangos/:servicioId", (req, res) => {
     const { servicioId } = req.params;
@@ -85,7 +83,6 @@ router.get("/rangos/:servicioId", (req, res) => {
 
 // ===============================
 // CREAR RANGO
-// POST /servicios/rangos/crear
 // ===============================
 router.post("/rangos/crear", (req, res) => {
     const { servicio_id, minimo, maximo, precio } = req.body;
@@ -111,7 +108,6 @@ router.post("/rangos/crear", (req, res) => {
 
 // ===============================
 // EDITAR RANGO
-// PUT /servicios/rangos/editar/:id
 // ===============================
 router.put("/rangos/editar/:id", (req, res) => {
     const { id } = req.params;
@@ -138,7 +134,6 @@ router.put("/rangos/editar/:id", (req, res) => {
 
 // ===============================
 // ELIMINAR RANGO
-// DELETE /servicios/rangos/eliminar/:id
 // ===============================
 router.delete("/rangos/eliminar/:id", (req, res) => {
     const { id } = req.params;
@@ -158,7 +153,6 @@ router.delete("/rangos/eliminar/:id", (req, res) => {
 
 // ===============================
 // CREAR SERVICIO
-// POST /servicios/crear
 // ===============================
 router.post("/crear", (req, res) => {
     const { nombre, descripcion, unidad, precio_base } = req.body;
@@ -194,7 +188,6 @@ router.post("/crear", (req, res) => {
 
 // ===============================
 // ACTUALIZAR SERVICIO
-// PUT /servicios/actualizar/:id
 // ===============================
 router.put("/actualizar/:id", (req, res) => {
     const { id } = req.params;
@@ -228,7 +221,6 @@ router.put("/actualizar/:id", (req, res) => {
 
 // ===============================
 // ELIMINAR SERVICIO
-// DELETE /servicios/eliminar/:id
 // ===============================
 router.delete("/eliminar/:id", (req, res) => {
     const { id } = req.params;
@@ -248,8 +240,6 @@ router.delete("/eliminar/:id", (req, res) => {
 
 // ===============================
 // OBTENER SERVICIO POR ID
-// IMPORTANTE: va al final
-// GET /servicios/:id
 // ===============================
 router.get("/:id", (req, res) => {
     const { id } = req.params;

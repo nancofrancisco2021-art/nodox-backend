@@ -1,6 +1,7 @@
 {
   "name": "nodox-backend",
   "version": "1.0.0",
+  "description": "Backend NODOX API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

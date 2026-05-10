@@ -35,9 +35,6 @@ app.use('/servicios', serviciosRoutes);
 
 console.log("SERVER USANDO ROUTES/OREDENES NUEVO");
 
-app.listen(3000, () => {
-    console.log("API NODOX corriendo en puerto 3000");
-});
 
 pool.query("SELECT 1", (err, res) => {
     if (err) {

@@ -38,13 +38,11 @@ router.post("/login", (req, res) => {
         }
  
         const user = rows[0];
- 
-        // Si manejas contraseña en texto plano:
+             
         if (user.contrasena !== contrasena) {
             return res.status(401).json({ error: "Contraseña incorrecta." });
         }
  
-        // Si después usas bcrypt, aquí cambiaría
  
         res.json({
             mensaje: "Login correcto",
