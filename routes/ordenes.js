@@ -36,16 +36,11 @@ router.post("/crear", async (req, res) => {
             anticipo = 0,
             saldo = 0,
             sucursal_id,
-            numero_orden,
             estado_inicial = "Pendiente"
         } = req.body;
 
         if (!sucursal_id) {
             return res.status(400).json({ error: "Sucursal requerida" });
-        }
-
-        if (!numero_orden) {
-            return res.status(400).json({ error: "Número de orden requerido" });
         }
 
         if (!cliente_info.cliente || !cliente_info.tel) {
@@ -61,6 +56,33 @@ router.post("/crear", async (req, res) => {
         }
 
         await conn.beginTransaction();
+
+        // =============================
+// GENERAR NÚMERO DE ORDEN AUTOMÁTICO
+// =============================
+const [numeroRows] = await conn.query(
+    `
+    SELECT 
+        DATE_FORMAT(NOW(), '%d/%m/%y') AS fecha_actual,
+        COALESCE(
+            MAX(
+                CAST(SUBSTRING_INDEX(numero_orden, '-', -1) AS UNSIGNED)
+            ), 
+            0
+        ) + 1 AS siguiente
+    FROM ordenes_trabajo
+    WHERE sucursal_id = ?
+      AND numero_orden LIKE CONCAT(DATE_FORMAT(NOW(), '%d/%m/%y'), '-%')
+    `,
+    [sucursal_id]
+);
+
+const fechaActual = numeroRows[0].fecha_actual;
+const consecutivo = numeroRows[0].siguiente;
+
+const numero_orden = `${fechaActual}-${consecutivo}`;
+
+console.log("Número de orden generado:", numero_orden);
 
         // =============================
         // VALIDAR STOCK
@@ -163,7 +185,8 @@ router.post("/crear", async (req, res) => {
         res.json({
             msg: "ok",
             mensaje: "Orden creada correctamente",
-            id: ordenId
+            id: ordenId,
+            numero_orden
         });
 
     } catch (err) {
