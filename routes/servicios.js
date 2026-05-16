@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { registrarBitacora, obtenerUsuarioAccion } = require("../utils/bitacora");
 
 // Detecta si tu tabla servicios usa precio o precio_base
 function getPrecioColumn(callback) {

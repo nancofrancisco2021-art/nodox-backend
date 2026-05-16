@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
- 
+const { registrarBitacora, obtenerUsuarioAccion } = require("../utils/bitacora");
+
 // =========================================
 // Listar sucursales
 // =========================================
@@ -13,17 +14,18 @@ router.get("/sucursales", (req, res) => {
                 console.error("Error listando sucursales:", err);
                 return res.status(500).json({ error: "Error al obtener sucursales" });
             }
+
             res.json(rows);
         }
     );
 });
- 
+
 // =========================================
-//  Listar inventario de la sucursal actual
+// Listar inventario de la sucursal actual
 // =========================================
 router.get("/listar/:sucursalId", (req, res) => {
     const { sucursalId } = req.params;
- 
+
     const sql = `
         SELECT
             i.id,
@@ -40,22 +42,23 @@ router.get("/listar/:sucursalId", (req, res) => {
             ON s.id = ?
         ORDER BY i.id DESC
     `;
- 
+
     db.query(sql, [sucursalId, sucursalId], (err, rows) => {
         if (err) {
             console.error("Error listando inventario:", err);
             return res.status(500).json({ error: "Error al obtener inventario" });
         }
+
         res.json(rows);
     });
 });
- 
+
 // =========================================
 // Ver inventario de otras sucursales
 // =========================================
 router.get("/otras-sucursales/:sucursalId", (req, res) => {
     const { sucursalId } = req.params;
- 
+
     const sql = `
         SELECT
             i.id,
@@ -70,16 +73,17 @@ router.get("/otras-sucursales/:sucursalId", (req, res) => {
         WHERE isu.sucursal_id <> ?
         ORDER BY i.nombre ASC, s.nombre ASC
     `;
- 
+
     db.query(sql, [sucursalId], (err, rows) => {
         if (err) {
             console.error("Error obteniendo inventario de otras sucursales:", err);
             return res.status(500).json({ error: "Error al obtener otras sucursales" });
         }
+
         res.json(rows);
     });
 });
- 
+
 // =========================================
 // Detalle de producto por sucursal
 // =========================================
@@ -114,96 +118,303 @@ router.get("/detalle/:id/:sucursalId", (req, res) => {
         res.json(rows[0]);
     });
 });
- 
+
 // =========================================
 // Crear producto + stock inicial sucursal
+// POST /inventario/crear
 // =========================================
 router.post("/crear", (req, res) => {
-    const { nombre, descripcion, unidad, precio, cantidad, sucursal_id } = req.body;
- 
+    const {
+        nombre,
+        descripcion,
+        unidad,
+        precio,
+        cantidad,
+        sucursal_id
+    } = req.body;
+
     if (!nombre || !sucursal_id) {
-        return res.status(400).json({ error: "Nombre y sucursal son obligatorios" });
+        return res.status(400).json({
+            error: "Nombre y sucursal son obligatorios"
+        });
     }
- 
+
     const sqlProducto = `
         INSERT INTO inventario (nombre, descripcion, unidad, precio, cantidad)
         VALUES (?, ?, ?, ?, 0)
     `;
- 
-    db.query(sqlProducto, [nombre, descripcion, unidad, precio || 0], (err, result) => {
-        if (err) {
-            console.error("Error creando producto:", err);
-            return res.status(500).json({ error: "Error al crear producto" });
-        }
- 
-        const inventarioId = result.insertId;
- 
-        const sqlStock = `
-            INSERT INTO inventario_sucursal (inventario_id, sucursal_id, cantidad, stock_minimo)
-            VALUES (?, ?, ?, 0)
-        `;
- 
-        db.query(sqlStock, [inventarioId, sucursal_id, cantidad || 0], (err2) => {
-            if (err2) {
-                console.error("Error guardando stock por sucursal:", err2);
-                return res.status(500).json({ error: "Producto creado pero no se pudo guardar el stock" });
+
+    db.query(
+        sqlProducto,
+        [nombre, descripcion || "", unidad || "pieza", precio || 0],
+        (err, result) => {
+            if (err) {
+                console.error("Error creando producto:", err);
+                return res.status(500).json({
+                    error: "Error al crear producto",
+                    detalle: err.message
+                });
             }
- 
-            res.json({ mensaje: "Producto creado correctamente", id: inventarioId });
-        });
-    });
+
+            const inventarioId = result.insertId;
+
+            const sqlStock = `
+                INSERT INTO inventario_sucursal (inventario_id, sucursal_id, cantidad, stock_minimo)
+                VALUES (?, ?, ?, 0)
+            `;
+
+            db.query(
+                sqlStock,
+                [inventarioId, sucursal_id, cantidad || 0],
+                async (err2) => {
+                    if (err2) {
+                        console.error("Error guardando stock por sucursal:", err2);
+                        return res.status(500).json({
+                            error: "Producto creado pero no se pudo guardar el stock",
+                            detalle: err2.message
+                        });
+                    }
+
+                    try {
+                        const usuarioAccion = obtenerUsuarioAccion(req);
+
+                        await registrarBitacora({
+                            sucursal_id,
+                            ...usuarioAccion,
+                            modulo: "Inventario",
+                            accion: "Agregar material",
+                            descripcion: `Agregó el material ${nombre}`,
+                            referencia_tipo: "inventario",
+                            referencia_id: inventarioId,
+                            datos_despues: {
+                                id: inventarioId,
+                                nombre,
+                                descripcion: descripcion || "",
+                                unidad: unidad || "pieza",
+                                precio: Number(precio || 0),
+                                cantidad: Number(cantidad || 0),
+                                sucursal_id
+                            }
+                        });
+
+                    } catch (bitacoraError) {
+                        console.error("Error registrando bitácora al crear inventario:", bitacoraError);
+                    }
+
+                    res.json({
+                        msg: "ok",
+                        mensaje: "Producto creado correctamente",
+                        id: inventarioId
+                    });
+                }
+            );
+        }
+    );
 });
- 
+
 // =========================================
 // Actualizar producto + cantidad sucursal
+// PUT /inventario/actualizar/:id
 // =========================================
 router.put("/actualizar/:id", (req, res) => {
     const { id } = req.params;
-    const { nombre, descripcion, unidad, precio, cantidad, sucursal_id } = req.body;
- 
-    const sqlProducto = `
-        UPDATE inventario
-        SET nombre = ?, descripcion = ?, unidad = ?, precio = ?
-        WHERE id = ?
-    `;
- 
-    db.query(sqlProducto, [nombre, descripcion, unidad, precio || 0, id], (err) => {
-        if (err) {
-            console.error("Error actualizando producto:", err);
-            return res.status(500).json({ error: "Error al actualizar producto" });
-        }
- 
-        const sqlStock = `
-            INSERT INTO inventario_sucursal (inventario_id, sucursal_id, cantidad, stock_minimo)
-            VALUES (?, ?, ?, 0)
-            ON DUPLICATE KEY UPDATE cantidad = VALUES(cantidad)
-        `;
- 
-        db.query(sqlStock, [id, sucursal_id, cantidad || 0], (err2) => {
-            if (err2) {
-                console.error("Error actualizando stock de sucursal:", err2);
-                return res.status(500).json({ error: "Producto actualizado pero falló el stock de sucursal" });
-            }
- 
-            res.json({ mensaje: "Producto actualizado correctamente" });
+
+    const {
+        nombre,
+        descripcion,
+        unidad,
+        precio,
+        cantidad,
+        sucursal_id
+    } = req.body;
+
+    if (!nombre || !sucursal_id) {
+        return res.status(400).json({
+            error: "Nombre y sucursal son obligatorios"
         });
+    }
+
+    const sqlAntes = `
+        SELECT
+            i.id,
+            i.nombre,
+            i.descripcion,
+            i.unidad,
+            i.precio,
+            COALESCE(isu.cantidad, 0) AS cantidad,
+            isu.sucursal_id
+        FROM inventario i
+        LEFT JOIN inventario_sucursal isu
+            ON i.id = isu.inventario_id AND isu.sucursal_id = ?
+        WHERE i.id = ?
+        LIMIT 1
+    `;
+
+    db.query(sqlAntes, [sucursal_id, id], (errAntes, rowsAntes) => {
+        if (errAntes) {
+            console.error("Error obteniendo producto antes de actualizar:", errAntes);
+            return res.status(500).json({
+                error: "Error obteniendo producto antes de actualizar",
+                detalle: errAntes.message
+            });
+        }
+
+        const productoAntes = rowsAntes[0] || null;
+
+        const sqlProducto = `
+            UPDATE inventario
+            SET nombre = ?, descripcion = ?, unidad = ?, precio = ?
+            WHERE id = ?
+        `;
+
+        db.query(
+            sqlProducto,
+            [nombre, descripcion || "", unidad || "pieza", precio || 0, id],
+            (err) => {
+                if (err) {
+                    console.error("Error actualizando producto:", err);
+                    return res.status(500).json({
+                        error: "Error al actualizar producto",
+                        detalle: err.message
+                    });
+                }
+
+                const sqlStock = `
+                    INSERT INTO inventario_sucursal (inventario_id, sucursal_id, cantidad, stock_minimo)
+                    VALUES (?, ?, ?, 0)
+                    ON DUPLICATE KEY UPDATE cantidad = VALUES(cantidad)
+                `;
+
+                db.query(
+                    sqlStock,
+                    [id, sucursal_id, cantidad || 0],
+                    async (err2) => {
+                        if (err2) {
+                            console.error("Error actualizando stock de sucursal:", err2);
+                            return res.status(500).json({
+                                error: "Producto actualizado pero falló el stock de sucursal",
+                                detalle: err2.message
+                            });
+                        }
+
+                        try {
+                            const usuarioAccion = obtenerUsuarioAccion(req);
+
+                            await registrarBitacora({
+                                sucursal_id,
+                                ...usuarioAccion,
+                                modulo: "Inventario",
+                                accion: "Editar material",
+                                descripcion: `Editó el material ${nombre}`,
+                                referencia_tipo: "inventario",
+                                referencia_id: id,
+                                datos_antes: productoAntes,
+                                datos_despues: {
+                                    id,
+                                    nombre,
+                                    descripcion: descripcion || "",
+                                    unidad: unidad || "pieza",
+                                    precio: Number(precio || 0),
+                                    cantidad: Number(cantidad || 0),
+                                    sucursal_id
+                                }
+                            });
+
+                        } catch (bitacoraError) {
+                            console.error("Error registrando bitácora al actualizar inventario:", bitacoraError);
+                        }
+
+                        res.json({
+                            msg: "ok",
+                            mensaje: "Producto actualizado correctamente"
+                        });
+                    }
+                );
+            }
+        );
     });
 });
- 
+
 // =========================================
 // Eliminar producto
+// DELETE /inventario/eliminar/:id
 // =========================================
 router.delete("/eliminar/:id", (req, res) => {
     const { id } = req.params;
- 
-    db.query("DELETE FROM inventario WHERE id = ?", [id], (err) => {
-        if (err) {
-            console.error("Error eliminando producto:", err);
-            return res.status(500).json({ error: "Error al eliminar producto" });
+    const { sucursal_id } = req.body || {};
+
+    if (!sucursal_id) {
+        return res.status(400).json({
+            error: "Sucursal requerida para eliminar y registrar bitácora"
+        });
+    }
+
+    const sqlAntes = `
+        SELECT
+            i.id,
+            i.nombre,
+            i.descripcion,
+            i.unidad,
+            i.precio,
+            COALESCE(isu.cantidad, 0) AS cantidad,
+            isu.sucursal_id
+        FROM inventario i
+        LEFT JOIN inventario_sucursal isu
+            ON i.id = isu.inventario_id AND isu.sucursal_id = ?
+        WHERE i.id = ?
+        LIMIT 1
+    `;
+
+    db.query(sqlAntes, [sucursal_id, id], (errAntes, rowsAntes) => {
+        if (errAntes) {
+            console.error("Error obteniendo producto antes de eliminar:", errAntes);
+            return res.status(500).json({
+                error: "Error obteniendo producto antes de eliminar",
+                detalle: errAntes.message
+            });
         }
- 
-        res.json({ mensaje: "Producto eliminado correctamente" });
+
+        const productoAntes = rowsAntes[0] || null;
+
+        db.query("DELETE FROM inventario WHERE id = ?", [id], async (err, result) => {
+            if (err) {
+                console.error("Error eliminando producto:", err);
+                return res.status(500).json({
+                    error: "Error al eliminar producto",
+                    detalle: err.message
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    error: "Producto no encontrado"
+                });
+            }
+
+            try {
+                const usuarioAccion = obtenerUsuarioAccion(req);
+
+                await registrarBitacora({
+                    sucursal_id,
+                    ...usuarioAccion,
+                    modulo: "Inventario",
+                    accion: "Eliminar material",
+                    descripcion: `Eliminó el material ${productoAntes?.nombre || id}`,
+                    referencia_tipo: "inventario",
+                    referencia_id: id,
+                    datos_antes: productoAntes
+                });
+
+            } catch (bitacoraError) {
+                console.error("Error registrando bitácora al eliminar inventario:", bitacoraError);
+            }
+
+            res.json({
+                msg: "ok",
+                mensaje: "Producto eliminado correctamente"
+            });
+        });
     });
 });
- 
+
 module.exports = router;
