@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { registrarBitacora, obtenerUsuarioAccion } = require("../utils/bitacora");
 
 // =========================================
-// GENERAR CÓDIGO DE CLIENTE AUTOMÁTICO
+//CODIGO DE CLIENTE AUTOMÁTICO
 // =========================================
 function generarCodigoCliente(callback) {
     const sql = `
@@ -94,6 +95,7 @@ router.get("/:id", (req, res) => {
 
 // =========================================
 // CREAR O ACTUALIZAR CLIENTE
+// POST /clientes/guardar
 // =========================================
 router.post("/guardar", (req, res) => {
     const {
@@ -104,7 +106,8 @@ router.post("/guardar", (req, res) => {
         telefono,
         mail,
         direccion,
-        rfc
+        rfc,
+        sucursal_id
     } = req.body;
 
     const telefonoFinal = telefono || id || "";
@@ -118,6 +121,12 @@ router.post("/guardar", (req, res) => {
     if (!telefonoFinal || !String(telefonoFinal).trim()) {
         return res.status(400).json({
             error: "El teléfono del cliente es obligatorio"
+        });
+    }
+
+    if (!sucursal_id) {
+        return res.status(400).json({
+            error: "Sucursal requerida para registrar bitácora"
         });
     }
 
@@ -142,6 +151,9 @@ router.post("/guardar", (req, res) => {
                 });
             }
 
+            // =========================================
+            // SI EXISTE, ACTUALIZAR CLIENTE
+            // =========================================
             if (rows.length > 0) {
                 const clienteExistente = rows[0];
 
@@ -169,13 +181,39 @@ router.post("/guardar", (req, res) => {
                         rfc || "",
                         clienteExistente.id
                     ],
-                    (err) => {
+                    async (err) => {
                         if (err) {
                             console.error("Error actualizando cliente:", err);
                             return res.status(500).json({
                                 error: "Error al actualizar cliente",
                                 detalle: err.message
                             });
+                        }
+
+                        try {
+                            const usuarioAccion = obtenerUsuarioAccion(req);
+
+                            await registrarBitacora({
+                                sucursal_id,
+                                ...usuarioAccion,
+                                modulo: "Clientes",
+                                accion: "Editar cliente",
+                                descripcion: `Editó la información del cliente ${cliente.trim()}`,
+                                referencia_tipo: "cliente",
+                                referencia_id: clienteExistente.id,
+                                datos_despues: {
+                                    codigo_cliente: clienteExistente.codigo_cliente,
+                                    cliente: cliente.trim(),
+                                    contacto: contacto || "",
+                                    telefono: telefonoFinal,
+                                    mail: mail || "",
+                                    direccion: direccion || "",
+                                    rfc: rfc || ""
+                                }
+                            });
+
+                        } catch (bitacoraError) {
+                            console.error("Error registrando bitácora al editar cliente:", bitacoraError);
                         }
 
                         res.json({
@@ -190,6 +228,9 @@ router.post("/guardar", (req, res) => {
                 return;
             }
 
+            // =========================================
+            // SI NO EXISTE, CREAR CLIENTE
+            // =========================================
             generarCodigoCliente((err, nuevoCodigo) => {
                 if (err) {
                     console.error("Error generando código de cliente:", err);
@@ -198,6 +239,7 @@ router.post("/guardar", (req, res) => {
                         detalle: err.message
                     });
                 }
+
                 const nuevoId = nuevoCodigo;
 
                 const sqlInsert = `
@@ -229,13 +271,39 @@ router.post("/guardar", (req, res) => {
                         direccion || "",
                         rfc || ""
                     ],
-                    (err) => {
+                    async (err) => {
                         if (err) {
                             console.error("Error creando cliente:", err);
                             return res.status(500).json({
                                 error: "Error al crear cliente",
                                 detalle: err.message
                             });
+                        }
+
+                        try {
+                            const usuarioAccion = obtenerUsuarioAccion(req);
+
+                            await registrarBitacora({
+                                sucursal_id,
+                                ...usuarioAccion,
+                                modulo: "Clientes",
+                                accion: "Crear cliente",
+                                descripcion: `Dio de alta al cliente ${cliente.trim()}`,
+                                referencia_tipo: "cliente",
+                                referencia_id: nuevoId,
+                                datos_despues: {
+                                    codigo_cliente: nuevoCodigo,
+                                    cliente: cliente.trim(),
+                                    contacto: contacto || "",
+                                    telefono: telefonoFinal,
+                                    mail: mail || "",
+                                    direccion: direccion || "",
+                                    rfc: rfc || ""
+                                }
+                            });
+
+                        } catch (bitacoraError) {
+                            console.error("Error registrando bitácora al crear cliente:", bitacoraError);
                         }
 
                         res.json({

@@ -30,6 +30,9 @@ app.use('/email', emailRoutes);
 const clientes = require('./routes/clientes');
 app.use('/clientes', clientes);
 
+const bitacora = require("./routes/bitacora");
+app.use("/bitacora", bitacora);
+
 const serviciosRoutes = require('./routes/servicios');
 app.use('/servicios', serviciosRoutes);
 

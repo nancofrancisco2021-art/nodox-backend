@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { registrarBitacora, obtenerUsuarioAccion } = require("../utils/bitacora");
 
 console.log("🔥 VERSION ORDENES ACTUALIZADA 🔥");
 
@@ -202,6 +203,39 @@ console.log("Número de orden generado:", numero_orden);
     } finally {
         conn.release();
     }
+    
+
+    try {
+    const usuarioAccion = obtenerUsuarioAccion(req);
+
+    await registrarBitacora({
+        sucursal_id,
+        ...usuarioAccion,
+        modulo: "Cotizaciones / Órdenes",
+        accion: "Crear orden",
+        descripcion: `Creó la orden de trabajo ${numero_orden}`,
+        referencia_tipo: "orden_trabajo",
+        referencia_id: ordenId,
+        datos_despues: {
+            numero_orden,
+            descripcion,
+            cliente: cliente_info.cliente,
+            telefono: cliente_info.tel,
+            total,
+            estado: estado_inicial
+        }
+    });
+
+} catch (bitacoraError) {
+    console.error("Error registrando bitácora de orden:", bitacoraError);
+}
+
+res.json({
+    msg: "ok",
+    mensaje: "Orden creada correctamente",
+    id: ordenId,
+    numero_orden
+});
 });
 
 // ===============================
@@ -476,43 +510,91 @@ router.delete("/eliminar/:id", (req, res) => {
     );
 });
 
-
 // =======================================
 // CONFIRMAR ORDEN DE TRABAJO
 // =======================================
 router.put("/confirmar/:id", (req, res) => {
     const { id } = req.params;
 
-    const sql = `
-        UPDATE ordenes_trabajo
-        SET 
-            estado = 'Confirmada',
-            fecha_confirmacion = NOW(),
-            fecha_ultima_actualizacion = NOW()
-        WHERE id = ?
-    `;
+    db.query(
+        "SELECT * FROM ordenes_trabajo WHERE id = ?",
+        [id],
+        (err, rows) => {
+            if (err) {
+                console.error("Error buscando orden antes de confirmar:", err);
 
-    db.query(sql, [id], (err, result) => {
-        if (err) {
-            console.error("Error confirmando orden:", err);
+                return res.status(500).json({
+                    error: "Error buscando orden antes de confirmar",
+                    detalle: err.message
+                });
+            }
 
-            return res.status(500).json({
-                error: "Error al confirmar orden",
-                detalle: err.message
+            if (!rows.length) {
+                return res.status(404).json({
+                    error: "Orden no encontrada"
+                });
+            }
+
+            const ordenAntes = rows[0];
+
+            const sql = `
+                UPDATE ordenes_trabajo
+                SET 
+                    estado = 'Confirmada',
+                    fecha_confirmacion = NOW(),
+                    fecha_ultima_actualizacion = NOW()
+                WHERE id = ?
+            `;
+
+            db.query(sql, [id], async (err, result) => {
+                if (err) {
+                    console.error("Error confirmando orden:", err);
+
+                    return res.status(500).json({
+                        error: "Error al confirmar orden",
+                        detalle: err.message
+                    });
+                }
+
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({
+                        error: "Orden no encontrada"
+                    });
+                }
+
+                // Registrar en bitácora
+                try {
+                    const usuarioAccion = obtenerUsuarioAccion(req);
+
+                    await registrarBitacora({
+                        sucursal_id: ordenAntes.sucursal_id,
+                        ...usuarioAccion,
+                        modulo: "Órdenes de trabajo",
+                        accion: "Confirmar orden",
+                        descripcion: `Confirmó la orden de trabajo ${ordenAntes.numero_orden || id}`,
+                        referencia_tipo: "orden_trabajo",
+                        referencia_id: id,
+                        datos_antes: {
+                            estado: ordenAntes.estado,
+                            fecha_confirmacion: ordenAntes.fecha_confirmacion
+                        },
+                        datos_despues: {
+                            estado: "Confirmada",
+                            fecha_confirmacion: "NOW()"
+                        }
+                    });
+
+                } catch (bitacoraError) {
+                    console.error("Error registrando bitácora al confirmar orden:", bitacoraError);
+                }
+
+                res.json({
+                    msg: "ok",
+                    mensaje: "Orden confirmada correctamente"
+                });
             });
         }
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                error: "Orden no encontrada"
-            });
-        }
-
-        res.json({
-            msg: "ok",
-            mensaje: "Orden confirmada correctamente"
-        });
-    });
+    );
 });
 
 module.exports = router;
