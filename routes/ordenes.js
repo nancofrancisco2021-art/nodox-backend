@@ -215,7 +215,7 @@ console.log("Número de orden generado:", numero_orden);
         accion: "Crear orden",
         descripcion: `Creó la orden de trabajo ${numero_orden}`,
         referencia_tipo: "orden_trabajo",
-        referencia_id: ordenId,
+        referencia_id: numero_orden,
         datos_despues: {
             numero_orden,
             descripcion,
@@ -573,7 +573,7 @@ router.put("/confirmar/:id", (req, res) => {
                         accion: "Confirmar orden",
                         descripcion: `Confirmó la orden de trabajo ${ordenAntes.numero_orden || id}`,
                         referencia_tipo: "orden_trabajo",
-                        referencia_id: id,
+                        referencia_id: ordenAntes.numero_orden || id,
                         datos_antes: {
                             estado: ordenAntes.estado,
                             fecha_confirmacion: ordenAntes.fecha_confirmacion
