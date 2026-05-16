@@ -59,37 +59,35 @@ router.post("/crear", async (req, res) => {
         await conn.beginTransaction();
 
         // =============================
-// GENERAR NÚMERO DE ORDEN AUTOMÁTICO
-// =============================
-const [numeroRows] = await conn.query(
-    `
-    SELECT 
-        DATE_FORMAT(NOW(), '%d/%m/%y') AS fecha_actual,
-        COALESCE(
-            MAX(
-                CAST(SUBSTRING_INDEX(numero_orden, '-', -1) AS UNSIGNED)
-            ), 
-            0
-        ) + 1 AS siguiente
-    FROM ordenes_trabajo
-    WHERE sucursal_id = ?
-      AND numero_orden LIKE CONCAT(DATE_FORMAT(NOW(), '%d/%m/%y'), '-%')
-    `,
-    [sucursal_id]
-);
+        // GENERAR NÚMERO DE ORDEN AUTOMÁTICO
+        // =============================
+        const [numeroRows] = await conn.query(
+            `
+            SELECT 
+                DATE_FORMAT(NOW(), '%d/%m/%y') AS fecha_actual,
+                COALESCE(
+                    MAX(
+                        CAST(SUBSTRING_INDEX(numero_orden, '-', -1) AS UNSIGNED)
+                    ), 
+                    0
+                ) + 1 AS siguiente
+            FROM ordenes_trabajo
+            WHERE sucursal_id = ?
+              AND numero_orden LIKE CONCAT(DATE_FORMAT(NOW(), '%d/%m/%y'), '-%')
+            `,
+            [sucursal_id]
+        );
 
-const fechaActual = numeroRows[0].fecha_actual;
-const consecutivo = numeroRows[0].siguiente;
+        const fechaActual = numeroRows[0].fecha_actual;
+        const consecutivo = numeroRows[0].siguiente;
+        const numero_orden = `${fechaActual}-${consecutivo}`;
 
-const numero_orden = `${fechaActual}-${consecutivo}`;
-
-console.log("Número de orden generado:", numero_orden);
+        console.log("Número de orden generado:", numero_orden);
 
         // =============================
         // VALIDAR STOCK
         // =============================
         for (const m of materiales) {
-        
             if (!m.id) continue;
 
             const consumo = calcularConsumoStock(m);
@@ -183,6 +181,49 @@ console.log("Número de orden generado:", numero_orden);
 
         await conn.commit();
 
+        // =============================
+        // REGISTRAR BITÁCORA AL CONFIRMAR COTIZACIÓN
+        // =============================
+                try {
+                    const usuarioAccion = obtenerUsuarioAccion(req);
+
+                    const esVentaRapida = estado_inicial === "Confirmada";
+
+                    await registrarBitacora({
+                        sucursal_id,
+                        ...usuarioAccion,
+                        modulo: "Cotizaciones",
+                        accion: esVentaRapida ? "Venta rápida" : "Confirmar cotización",
+                        descripcion: esVentaRapida
+                            ? `Realizó una venta rápida y generó la orden ${numero_orden}`
+                            : `Confirmó una cotización y generó la orden de trabajo ${numero_orden}`,
+                        referencia_tipo: "orden_trabajo",
+                        referencia_id: numero_orden,
+                        datos_despues: {
+                            tipo_movimiento: esVentaRapida ? "Venta rápida" : "Cotización por confirmar",
+                            numero_orden,
+                            descripcion,
+                            cliente: cliente_info.cliente,
+                            contacto: cliente_info.contacto,
+                            telefono: cliente_info.tel,
+                            mail: cliente_info.mail,
+                            direccion: cliente_info.direccion,
+                            rfc: cliente_info.rfc,
+                            subtotal,
+                            iva,
+                            total,
+                            anticipo,
+                            saldo,
+                            metodo_pago,
+                            estado: estado_inicial,
+                            materiales
+                        }
+                    });
+
+                } catch (bitacoraError) {
+                    console.error("Error registrando bitácora al confirmar cotización:", bitacoraError);
+                }
+
         res.json({
             msg: "ok",
             mensaje: "Orden creada correctamente",
@@ -203,41 +244,7 @@ console.log("Número de orden generado:", numero_orden);
     } finally {
         conn.release();
     }
-    
-
-    try {
-    const usuarioAccion = obtenerUsuarioAccion(req);
-
-    await registrarBitacora({
-        sucursal_id,
-        ...usuarioAccion,
-        modulo: "Cotizaciones / Órdenes",
-        accion: "Crear orden",
-        descripcion: `Creó la orden de trabajo ${numero_orden}`,
-        referencia_tipo: "orden_trabajo",
-        referencia_id: numero_orden,
-        datos_despues: {
-            numero_orden,
-            descripcion,
-            cliente: cliente_info.cliente,
-            telefono: cliente_info.tel,
-            total,
-            estado: estado_inicial
-        }
-    });
-
-} catch (bitacoraError) {
-    console.error("Error registrando bitácora de orden:", bitacoraError);
-}
-
-res.json({
-    msg: "ok",
-    mensaje: "Orden creada correctamente",
-    id: ordenId,
-    numero_orden
 });
-});
-
 // ===============================
 // LISTAR ÓRDENES PENDIENTES POR SUCURSAL
 // ===============================
