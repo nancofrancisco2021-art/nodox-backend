@@ -95,7 +95,6 @@ router.get("/:id", (req, res) => {
 
 // =========================================
 // CREAR O ACTUALIZAR CLIENTE
-// POST /clientes/guardar
 // =========================================
 router.post("/guardar", (req, res) => {
     const {
@@ -130,14 +129,24 @@ router.post("/guardar", (req, res) => {
         });
     }
 
-    const sqlBuscar = `
-        SELECT id, codigo_cliente
-        FROM clientes
-        WHERE id = ?
-           OR telefono = ?
-           OR codigo_cliente = ?
-        LIMIT 1
-    `;
+        const sqlBuscar = `
+        SELECT 
+            id,
+            codigo_cliente,
+            cliente,
+            contacto,
+            telefono,
+            mail,
+            direccion,
+            rfc,
+            fecha_registro,
+            fecha_actualizacion
+            FROM clientes
+            WHERE id = ?
+            OR telefono = ?
+            OR codigo_cliente = ?
+            LIMIT 1
+        `;
 
     db.query(
         sqlBuscar,
@@ -151,9 +160,6 @@ router.post("/guardar", (req, res) => {
                 });
             }
 
-            // =========================================
-            // SI EXISTE, ACTUALIZAR CLIENTE
-            // =========================================
             if (rows.length > 0) {
                 const clienteExistente = rows[0];
 
@@ -198,9 +204,18 @@ router.post("/guardar", (req, res) => {
                                 ...usuarioAccion,
                                 modulo: "Clientes",
                                 accion: "Editar cliente",
-                                descripcion: `Editó la información del cliente ${cliente.trim()}`,
+                                descripcion: `Editó la información del cliente ${clienteExistente.cliente || cliente.trim()}`,
                                 referencia_tipo: "cliente",
                                 referencia_id: clienteExistente.id,
+                                datos_antes: {
+                                    codigo_cliente: clienteExistente.codigo_cliente,
+                                    cliente: clienteExistente.cliente,
+                                    contacto: clienteExistente.contacto,
+                                    telefono: clienteExistente.telefono,
+                                    mail: clienteExistente.mail,
+                                    direccion: clienteExistente.direccion,
+                                    rfc: clienteExistente.rfc
+                                },
                                 datos_despues: {
                                     codigo_cliente: clienteExistente.codigo_cliente,
                                     cliente: cliente.trim(),
