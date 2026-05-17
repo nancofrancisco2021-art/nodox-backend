@@ -20,7 +20,7 @@ async function enviarCorreo(destinatario, asunto, mensaje, pdfPath, sucursal = {
 
         // Correo general de envío
         // Sin dominio propio puedes usar onboarding@resend.dev para pruebas
-        const correoGeneral = process.env.RESEND_FROM_EMAIL || "francisconanco85@gmail.com";
+        const correoGeneral = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
         const nombreGeneral = process.env.RESEND_FROM_NAME || "NODOX";
 
         // Correo de contacto de la sucursal
