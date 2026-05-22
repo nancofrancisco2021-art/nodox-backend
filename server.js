@@ -27,6 +27,9 @@ app.use('/usuarios', usuarios);
 const emailRoutes = require('./routes/email');
 app.use('/email', emailRoutes);
 
+const pdfRoutes = require("./routes/pdf");
+app.use("/pdf", pdfRoutes);
+
 const clientes = require('./routes/clientes');
 app.use('/clientes', clientes);
 
