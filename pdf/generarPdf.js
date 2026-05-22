@@ -75,7 +75,6 @@ function generarPDFOrden(orden) {
         // LOGO / ENCABEZADO
         // =============================
         const logoPath = path.join(__dirname, "../assets/nodox_logo_pdf.jpeg");
-        const logoPath2 = path.join(__dirname, "../../frontend/img/nodox_logo.png");
 
         if (fs.existsSync(logoPath)) {
         doc.image(logoPath, pageW / 2 - 185, 18, {
@@ -110,7 +109,7 @@ function generarPDFOrden(orden) {
         doc.fillColor(negro).font("Helvetica").fontSize(10);
 
         const clienteTexto = orden.cliente || orden.razon_social || "—";
-        const vigencia = orden.vigencia || "15 días";
+        const tiempoEntrega = orden.tiempo_entrega || orden.tiempo_estimado || orden.entrega_estimada || "—";
 
         doc
             .font("Helvetica-Bold")
@@ -119,7 +118,7 @@ function generarPDFOrden(orden) {
         doc
             .font("Helvetica")
             .text(clienteTexto, margin, 145)
-            .text(`Vigencia: ${vigencia}`, margin, 160);
+            .text(`Tiempo estimado de entrega: ${tiempoEntrega}`, margin, 160);
 
         doc
             .font("Helvetica")
