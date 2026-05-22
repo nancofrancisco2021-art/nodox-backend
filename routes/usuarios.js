@@ -5,7 +5,6 @@ const { registrarBitacora, obtenerUsuarioAccion } = require("../utils/bitacora")
 
 // =========================================
 // LISTAR USUARIOS POR SUCURSAL
-// GET /usuarios/listar/:sucursalId
 // =========================================
 router.get("/listar/:sucursalId", (req, res) => {
     const { sucursalId } = req.params;
@@ -34,7 +33,6 @@ router.get("/listar/:sucursalId", (req, res) => {
 
 // ===============================
 // CREAR USUARIO
-// POST /usuarios/crear
 // ===============================
 router.post("/crear", (req, res) => {
     const {
@@ -128,7 +126,6 @@ router.post("/crear", (req, res) => {
 
 // ===============================
 // EDITAR USUARIO
-// PUT /usuarios/editar/:id
 // ===============================
 router.put("/editar/:id", (req, res) => {
     const { id } = req.params;
@@ -238,7 +235,6 @@ router.put("/editar/:id", (req, res) => {
 
 // ===============================
 // BLOQUEAR / DESBLOQUEAR USUARIO
-// PUT /usuarios/bloquear/:id
 // ===============================
 router.put("/bloquear/:id", (req, res) => {
     const { id } = req.params;
@@ -323,7 +319,6 @@ router.put("/bloquear/:id", (req, res) => {
 
 // ===============================
 // ELIMINAR USUARIO
-// DELETE /usuarios/eliminar/:id
 // ===============================
 router.delete("/eliminar/:id", (req, res) => {
     const { id } = req.params;
@@ -394,7 +389,6 @@ router.delete("/eliminar/:id", (req, res) => {
 
 // ===============================
 // PING / ACTUALIZAR ÚLTIMA CONEXIÓN
-// GET /usuarios/ping/:id
 // ===============================
 router.get("/ping/:id", (req, res) => {
     const id = req.params.id;
